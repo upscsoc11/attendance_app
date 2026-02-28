@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+</head>
+<body>
+
+<h2>Admin Dashboard</h2>
+
+<form method="GET">
+    <select name="exam">
+        <option value="">-- All Exams --</option>
+        {% for exam in exams %}
+            <option value="{{ exam }}" 
+            {% if exam == selected_exam %}selected{% endif %}>
+                {{ exam }}
+            </option>
+        {% endfor %}
+    </select>
+    <button type="submit">Filter</button>
+</form>
+
+<br><br>
+
+<a href="/admin/export{% if selected_exam %}?exam={{ selected_exam }}{% endif %}">
+    <button>Export to Excel</button>
+</a>
+
+
+<table border="1" cellpadding="5">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Designation</th>
+        <th>Exam</th>
+        <th>Dates</th>
+        <th>Submitted By</th>
+        <th>Created At</th>
+        <th>PDF</th>
+        <th>Delete</th>
+    </tr>
+
+    {% for r in records %}
+    <tr>
+        <td>{{ r.id_no }}</td>
+        <td>{{ r.name }}</td>
+        <td>{{ r.designation }}</td>
+        <td>{{ r.exam_name }}</td>
+        <td>{{ r.exam_dates }}</td>
+        <td>{{ r.username }}</td>
+        <td>{{ r.created_at }}</td>
+        <td>
+            {% if r.pdf_path %}
+                <a href="/{{ r.pdf_path }}" target="_blank">View</a>
+            {% endif %}
+        </td>
+        <td>
+            <a href="/admin/delete/{{ r.id }}" 
+               onclick="return confirm('Are you sure?')">
+               Delete
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+
+</table>
+
+<br>
+
+<a href="/admin/staff">Manage Staff</a>
+
+<br>
+<br>
+
+<a href="/certificate">Back</a>
+
+
+
+
+</body>
+</html>

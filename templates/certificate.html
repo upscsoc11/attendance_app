@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Attendance Certificate</title>
+    <style>
+        body {
+            font-family: "Times New Roman";
+            margin: 40px;
+        }
+        select, button, input {
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 6px;
+        }
+        @media (max-width: 600px) {
+            body {
+                margin: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<h3>C-XI SECTION</h3>
+
+<p>
+Reference C-XI Section’s requisition for attending office in connection
+with the <b>{{ duty_type }}</b> on
+<b>{{ exam_name }}</b> Examination.
+</p>
+
+<p>
+It is certified that the undermentioned official(s) has/have actually
+attended office for performing the assigned work on the following date(s):
+</p>
+
+<hr>
+
+<label><b>Search & Select Staff:</b></label><br>
+<input type="text" id="staffSearch" placeholder="Type name or designation">
+
+<br><br>
+
+<select id="staffSelect" size="5">
+    {% for s in staff %}
+        <option value="{{ s.id_no }}"
+                data-name="{{ s.name }}"
+                data-desg="{{ s.designation }}">
+            {{ s.name }} ({{ s.designation }})
+        </option>
+    {% endfor %}
+</select>
+
+<br><br>
+
+<label><b>Select Date(s):</b></label><br>
+<select id="examDate" multiple size="4">
+    {% for d in dates %}
+        <option value="{{ d.exam_date.strftime('%Y-%m-%d') }}">
+            {{ d.exam_date.strftime("%d-%m-%Y") }}
+        </option>
+    {% endfor %}
+</select>
+
+<br><br>
+<button onclick="addPerson()">Add</button>
+
+<table id="personsTable">
+    <thead>
+        <tr>
+            <th>Sl</th>
+            <th>Name & Designation</th>
+            <th>Date(s)</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+
+<br>
+<button onclick="submitAttendance()">Submit & Generate PDF</button>
+
+<br>
+<a href="/logout">Logout</a>
+
+<script>
+let persons = [];
+
+/* 🔍 Staff search */
+document.getElementById("staffSearch").addEventListener("keyup", function () {
+    const filter = this.value.toLowerCase();
+    const options = document.querySelectorAll("#staffSelect option");
+
+    options.forEach(opt => {
+        opt.style.display =
+            opt.text.toLowerCase().includes(filter) ? "" : "none";
+    });
+});
+
+function addPerson() {
+    const staff = document.getElementById("staffSelect");
+    const dateSelect = document.getElementById("examDate");
+
+    if (!staff.value) return;
+
+    let selectedDates = Array.from(dateSelect.selectedOptions)
+        .map(o => o.value)
+        .sort((a, b) => new Date(a) - new Date(b)); // ✅ ascending order
+
+    if (selectedDates.length === 0) return;
+
+    const id = staff.value;
+    const name = staff.selectedOptions[0].dataset.name;
+    const desg = staff.selectedOptions[0].dataset.desg;
+
+    let existing = persons.find(p => p.id === id);
+
+    if (existing) {
+        selectedDates.forEach(d => {
+            if (!existing.dates.includes(d)) {
+                existing.dates.push(d);
+            }
+        });
+        existing.dates.sort((a, b) => new Date(a) - new Date(b)); // ✅ ensure ascending
+    } else {
+        persons.push({
+            id: id,
+            text: name + " (" + desg + ")",
+            dates: selectedDates
+        });
+    }
+
+    renderTable();
+}
+
+function renderTable() {
+    const tbody = document.querySelector("#personsTable tbody");
+    tbody.innerHTML = "";
+
+    persons.forEach((p, i) => {
+        let tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${p.text}</td>
+            <td>
+                ${p.dates.map((d, index) => `
+                    <span style="margin-right:8px;">
+                        ${d}
+                        <button onclick="removeDate('${p.id}', ${index})" 
+                                style="color:red;border:none;background:none;cursor:pointer;">
+                            ✖
+                        </button>
+                    </span>
+                `).join("")}
+            </td>
+            <td>
+                <button onclick="removePerson('${p.id}')">
+                    Remove
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+
+function removePerson(id) {
+    persons = persons.filter(p => p.id !== id);
+    renderTable();
+}
+
+function removeDate(id, index) {
+    let person = persons.find(p => p.id === id);
+    if (!person) return;
+
+    person.dates.splice(index, 1);
+
+    // If no dates left → remove whole person
+    if (person.dates.length === 0) {
+        persons = persons.filter(p => p.id !== id);
+    }
+
+    renderTable();
+}
+
+
+
+function submitAttendance() {
+    if (persons.length === 0) {
+        alert("No staff added");
+        return;
+    }
+
+    fetch("/submit", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            persons: persons
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            alert("PDF generated successfully");
+            window.location.href = res.pdf_url;
+        } else {
+            alert(res.message);
+        }
+    });
+}
+
+</script>
+
+</body>
+</html>
