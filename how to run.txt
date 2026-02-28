@@ -1,0 +1,7 @@
+run cmd
+then run cd C:\attendance_app
+then run venv\Scripts\activate
+then run python app.py
+
+
+
